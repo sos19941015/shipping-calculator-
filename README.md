@@ -1,16 +1,60 @@
-# React + Vite
+# 🚀 集運計算神器 (Shipping Calculator)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+這是一個專為喜歡淘寶集運的朋友打造的純前端網頁應用程式 (SPA)。
+當您和朋友一起湊單集運，或一次買了大量商品時，面對複雜的**運費分攤（按重量）**與**進口稅分攤（按金額）**，這個計算機能幫您一鍵解決所有算帳煩惱！
 
-Currently, two official plugins are available:
+🔗 **[點此查看網站 Live Demo](https://sos19941015.github.io/shipping-calculator-/)**
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## React Compiler
+## ✨ 核心特色功能
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1.  **📊 智能匯入淘寶訂單 (支援 Excel & 文字)**
+    *   **一鍵導入**：直接上傳淘寶匯出的 `.xlsx` 檔案，或是貼上「已買到的寶貝」文字列表。
+    *   **模糊比對 (Fuzzy Matching)**：系統會自動從亂碼般的內容中萃取品名與金額，並與您手動輸入的集運清單進行智能匹配，自動填入對應價格，免去手動輸入的麻煩。
+2.  **💱 匯率自動換算 (RMB ➜ TWD)**
+    *   支援自訂人民幣匯率。
+    *   智能匯入時偵測到的任何人民幣金額，會**自動換算為台幣**再填入表格。
+3.  **⚖️ 雙軌分帳邏輯**
+    *   **運費**：嚴格依照商品的**重量**比例進行分攤。
+    *   **進口稅**：嚴格依照商品的**台幣金額**比例進行分攤。
+4.  **👨‍👩‍👦 彈性的「多人分帳」機制**
+    *   當購買單項商品超過數量 $1$ 時，可勾選「多人分帳」，系統將為該項目展開子清單，支援將同一個商品清單分配給多個不同的購買人。
+5.  **📥 一鍵匯出 CSV Excel 報表**
+    *   支援導出 **簡易版報表**（每人總結）與 **詳細版報表**（所有商品條列）。匯出的檔案可直接分享給朋友請款。
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 💻 系統架構與技術棧
+
+*   **框架**：React 19 (Hooks)
+*   **建置工具**：Vite
+*   **樣式**：純 CSS (CSS Variables, Flexbox 響應式佈局)
+*   **套件依賴**：`xlsx` (用於解析使用者上傳的 Excel 檔案)
+*   **部署環境**：GitHub Actions + GitHub Pages (完全 Serverless)
+
+---
+
+## 🏃 如何在本地環境執行？
+
+本專案使用 Node.js 開發環境，您可以透過以下指令快速啟動本地開發伺服器：
+
+```bash
+# 1. 複製專案
+git clone https://github.com/sos19941015/shipping-calculator-.git
+cd shipping-calculator-
+
+# 2. 安裝依賴套件
+npm install
+
+# 3. 啟動開發伺服器
+npm run dev
+```
+啟動後，開啟瀏覽器前往 `http://localhost:5173/` 即可。
+
+---
+
+## 🛠️ GitHub Actions 自動部署
+
+本專案已配置好完全自動化的 CI/CD 流程：
+任何對 `main` 分支的推播 (push)，都會觸發 `.github/workflows/deploy.yml`，讓 GitHub Actions 自動為您編譯打包 (Vite build) 並發布至 GitHub Pages 靜態環境。
