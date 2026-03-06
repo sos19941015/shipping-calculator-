@@ -158,6 +158,20 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
 }
 
+/* 隱藏預設的數字增減按鈕 (Spinners) 讓介面更簡潔 */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  /* Firefox */
+  appearance: textfield;
+  /* Standard */
+}
+
 .flex-row {
   display: flex;
   gap: 1rem;
@@ -218,6 +232,10 @@ button.secondary:hover {
 /* Tables */
 .table-container {
   overflow-x: auto;
+  overflow-y: auto;
+  /* 加入垂直滾動 */
+  max-height: 600px;
+  /* 限制表格最大高度，這會讓表頭的 sticky 起作用 */
   border-radius: 0.5rem;
   border: 1px solid var(--border-color);
 }
@@ -241,6 +259,12 @@ th {
   text-transform: uppercase;
   font-size: 0.75rem;
   letter-spacing: 0.05em;
+  /* 讓表頭固定，方便長清單滾動對照 */
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  /* 固定時加點陰影更有層次 */
 }
 
 tr:last-child td {

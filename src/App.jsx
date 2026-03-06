@@ -186,20 +186,35 @@ function App() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       const bstr = evt.target.result;
       const wb = XLSX.read(bstr, { type: 'binary' });
       const wsname = wb.SheetNames[0];
       const ws = wb.Sheets[wsname];
       const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
-      // 從 Excel 數據中查找品名與金額
-      // 根據截圖：E欄(索引4)是品名, J欄(索引9)是金額
+      // 從 Excel 數據中查找品名、金額與日期
+      // 根據截圖：B欄(1)是訂單時間, E欄(4)是品名, J欄(9)是金額
       const tbItems = [];
+      let latestOrderDateStr = null;
+
       data.forEach((row, rowIndex) => {
         if (rowIndex === 0) return; // 跳過標題列
+        const submitTime = row[1]; // Column B
         const name = row[4]; // Column E
         let priceStr = row[9]; // Column J
+
+        // 嘗試提取第一個有效的日期 (格式: YYYY-MM-DD)
+        if (submitTime && !latestOrderDateStr) {
+          if (typeof submitTime === 'string') {
+            const match = submitTime.match(/^(\d{4}-\d{2}-\d{2})/);
+            if (match) latestOrderDateStr = match[1];
+          } else if (typeof submitTime === 'number') {
+            // 將 Excel 序列日期轉為 JS 日期
+            const date = new Date((submitTime - (25567 + 1)) * 86400 * 1000);
+            latestOrderDateStr = date.toISOString().split('T')[0];
+          }
+        }
 
         if (name && priceStr) {
           // 清理金額字串 (移除 ￥ 等符號)
@@ -215,13 +230,38 @@ function App() {
         return;
       }
 
-      // 與現成 items 進行比對 (複用邏輯)
+      // 查詢歷史匯率 API
+      let currentExRate = exchangeRate;
+      let rateFetched = false;
+      if (latestOrderDateStr) {
+        try {
+          // 嘗試拿訂單日期的匯率
+          let res = await fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${latestOrderDateStr}/v1/currencies/cny.json`);
+          if (!res.ok) {
+            // 拿不到 (可能因為是未來/尚未結算)，改拿最新匯率
+            res = await fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/cny.json`);
+          }
+          if (res.ok) {
+            const json = await res.json();
+            if (json?.cny?.twd) {
+              currentExRate = json.cny.twd;
+              setExchangeRate(parseFloat(currentExRate.toFixed(4)));
+              rateFetched = true;
+            }
+          }
+        } catch (err) {
+          console.warn('匯率抓取失敗，使用預設匯率', err);
+        }
+      }
+
+      // 與現成 items 進行比對
       const updatedItems = [...items];
       let matchCount = 0;
       updatedItems.forEach(item => {
         if (item.price > 0) return;
         let bestMatch = null;
         let maxScore = 0;
+
         tbItems.forEach(tb => {
           let score = 0;
           const itemName = item.itemName.toLowerCase();
@@ -234,15 +274,21 @@ function App() {
             bestMatch = tb;
           }
         });
+
         if (bestMatch && maxScore > 1) {
-          item.price = parseFloat((bestMatch.price * exchangeRate).toFixed(2));
+          item.price = parseFloat((bestMatch.price * currentExRate).toFixed(2));
           matchCount++;
         }
       });
 
       setItems(updatedItems);
       setShowImportModal(false);
-      alert(`Excel 對比完成！成功自動填入 ${matchCount} 項金額。`);
+
+      let msg = `Excel 對比完成！成功自動填入 ${matchCount} 項金額。`;
+      if (rateFetched) {
+        msg += `\n\n網頁已自動依照您的訂單日期（${latestOrderDateStr}）載入當日匯率：${currentExRate.toFixed(4)}`;
+      }
+      alert(msg);
     };
     reader.readAsBinaryString(file);
   };
