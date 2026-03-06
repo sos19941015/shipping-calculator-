@@ -304,7 +304,7 @@ function App() {
     });
 
     if (unassigned > 0) {
-      if (!window.confirm(`還有 ${unassigned} 個物品未分配購買人，確定要繼續嗎？`)) {
+      if (!window.confirm(`還有 ${unassigned} 個物品未分配購買人，確定要繼續嗎？\n(按確定後，它們將會被歸類為「未分配」並一併進行結算)`)) {
         return;
       }
     }
@@ -318,7 +318,10 @@ function App() {
       return sum + i.price;
     }, 0);
 
-    const result = buyers.map(buyer => {
+    // 將「空字串(未分配)」也加入計算名單中
+    const allBuyers = [...buyers, ''];
+
+    const result = allBuyers.map(buyer => {
       let buyerWeight = 0;
       let buyerPrice = 0;
       let itemCount = 0;
@@ -326,14 +329,14 @@ function App() {
       items.forEach(i => {
         if (i.isShared) {
           i.shares.forEach(share => {
-            if (share.buyer === buyer) {
+            if ((share.buyer || '') === buyer) {
               buyerWeight += (i.weight / i.quantity);
               buyerPrice += share.price;
               itemCount += 1;
             }
           });
         } else {
-          if (i.buyer === buyer) {
+          if ((i.buyer || '') === buyer) {
             buyerWeight += i.weight;
             buyerPrice += i.price;
             itemCount += i.quantity;
@@ -345,12 +348,11 @@ function App() {
       const pricePerc = totalPrice > 0 ? (buyerPrice / totalPrice) : 0;
 
       const shippingFee = weightPerc * totalShipping;
-      // Tax distributed by price percentage
       const importTax = pricePerc * totalImportTax;
       const totalCost = buyerPrice + shippingFee + importTax;
 
       return {
-        buyer,
+        buyer: buyer || '未分配', // 如果名字是空的，設定為未分配
         weightPerc: weightPerc,
         weight: buyerWeight,
         price: buyerPrice,
@@ -358,9 +360,9 @@ function App() {
         importTax,
         totalCost,
         itemCount: itemCount,
-        pricePerc: pricePerc // 新增金額占比欄位
+        pricePerc: pricePerc
       };
-    });
+    }).filter(r => r.buyer !== '未分配' || r.itemCount > 0); // 若未分配的數量為 0，則報表中隱藏
 
     return result;
   }, [items, buyers, totalShipping, totalImportTax]);
