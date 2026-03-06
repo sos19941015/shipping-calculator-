@@ -524,34 +524,37 @@ function App() {
 
       {step === 2 && (
         <>
-          <div className="card flex gap-4">
-            <div style={{ flex: 1 }}>
-              <h2>總體費用設定</h2>
-              <div className="flex-row">
-                <div className="form-group mb-0" style={{ flex: 1, marginBottom: 0 }}>
-                  <label>總運費 (請輸入您付款的運費)</label>
-                  <input type="number" min="0" value={totalShipping} onChange={e => setTotalShipping(parseFloat(e.target.value) || 0)} />
-                </div>
-                <div className="form-group mb-0" style={{ flex: 1, marginBottom: 0 }}>
+          <div className="card flex gap-4" style={{ flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 300px' }}>
+              <h2 style={{ marginBottom: '1.25rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>總體費用設定</h2>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label>總運費 (請輸入您付款的運費)</label>
+                <input type="number" min="0" value={totalShipping} onChange={e => setTotalShipping(parseFloat(e.target.value) || 0)} style={{ width: '100%' }} />
+              </div>
+
+              <div className="flex" style={{ gap: '1rem' }}>
+                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
                   <label>總進口稅 (TWD)</label>
-                  <input type="number" min="0" value={totalImportTax} onChange={e => setTotalImportTax(parseFloat(e.target.value) || 0)} />
+                  <input type="number" min="0" value={totalImportTax} onChange={e => setTotalImportTax(parseFloat(e.target.value) || 0)} style={{ width: '100%' }} />
                 </div>
-                <div className="form-group mb-0" style={{ flex: 0.8, marginBottom: 0 }}>
-                  <label style={{ color: 'var(--primary-color)' }}>人民幣匯率 (RMB➜TWD)</label>
-                  <input type="number" step="0.01" min="0" value={exchangeRate} onChange={e => setExchangeRate(parseFloat(e.target.value) || 0)} />
+                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                  <label style={{ color: 'var(--primary-color)' }}>匯率 (RMB ➜ TWD)</label>
+                  <input type="number" step="0.01" min="0" value={exchangeRate} onChange={e => setExchangeRate(parseFloat(e.target.value) || 0)} style={{ width: '100%' }} />
                 </div>
               </div>
             </div>
-            <div style={{ flex: 1 }}>
-              <h2>管理購買人</h2>
-              <form onSubmit={handleAddBuyer} className="flex-row" style={{ alignItems: 'flex-end', gap: '0.5rem' }}>
+
+            <div style={{ flex: '1 1 300px' }}>
+              <h2 style={{ marginBottom: '1.25rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>管理購買人</h2>
+              <form onSubmit={handleAddBuyer} className="flex" style={{ alignItems: 'flex-end', gap: '0.75rem' }}>
                 <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
                   <label>新增購買人</label>
-                  <input type="text" placeholder="輸入購買人姓名" value={newBuyerName} onChange={e => setNewBuyerName(e.target.value)} />
+                  <input type="text" placeholder="輸入購買人姓名" value={newBuyerName} onChange={e => setNewBuyerName(e.target.value)} style={{ width: '100%' }} />
                 </div>
-                <button type="submit">新增人名</button>
+                <button type="submit" style={{ whiteSpace: 'nowrap', minWidth: '100px' }}>新增人名</button>
               </form>
-              <div className="flex gap-2" style={{ flexWrap: 'wrap', marginTop: '0.75rem' }}>
+              <div className="flex gap-2" style={{ flexWrap: 'wrap', marginTop: '1.25rem' }}>
                 {buyers.map(b => (
                   <span key={b} className="badge">
                     {b}
