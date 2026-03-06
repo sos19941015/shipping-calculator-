@@ -762,11 +762,11 @@ function App() {
               <thead>
                 <tr>
                   <th>購買人</th>
-                  <th className="text-center">重量占比</th>
-                  <th className="text-center">金額占比(稅)</th>
                   <th className="text-center">重量(kg)</th>
+                  <th className="text-center">重量占比</th>
                   <th className="text-right">運費</th>
                   <th className="text-right">商品價格</th>
+                  <th className="text-center">金額占比(稅)</th>
                   <th className="text-right">進口稅</th>
                   <th className="text-right">總價</th>
                 </tr>
@@ -774,18 +774,18 @@ function App() {
               <tbody>
                 {summaryData.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center text-muted" style={{ padding: '2rem' }}>
+                    <td colSpan={8} className="text-center text-muted" style={{ padding: '2rem' }}>
                       未分配任何物品
                     </td>
                   </tr>
                 ) : summaryData.map(d => (
                   <tr key={d.buyer}>
                     <td style={{ fontWeight: 600 }}>{d.buyer}</td>
-                    <td className="text-center">{(d.weightPerc * 100).toFixed(2)}%</td>
-                    <td className="text-center" style={{ color: 'var(--success-color)', fontWeight: 500 }}>{(d.pricePerc * 100).toFixed(2)}%</td>
                     <td className="text-center">{d.weight.toFixed(2)}</td>
+                    <td className="text-center">{(d.weightPerc * 100).toFixed(2)}%</td>
                     <td className="text-right">${d.shippingFee.toFixed(2)}</td>
                     <td className="text-right">${d.price.toFixed(2)}</td>
+                    <td className="text-center" style={{ color: 'var(--success-color)', fontWeight: 500 }}>{(d.pricePerc * 100).toFixed(2)}%</td>
                     <td className="text-right">${d.importTax.toFixed(2)}</td>
                     <td className="text-right" style={{ fontWeight: 600, color: 'var(--primary-color)' }}>
                       ${d.totalCost.toFixed(2)}
@@ -795,10 +795,11 @@ function App() {
                 {summaryData.length > 0 && (
                   <tr style={{ backgroundColor: '#f9fafb', borderTop: '2px solid var(--border-color)' }}>
                     <td style={{ fontWeight: 700 }}>總計</td>
-                    <td className="text-center font-bold">100.00%</td>
                     <td className="text-center font-bold">{summaryData.reduce((s, d) => s + d.weight, 0).toFixed(2)}</td>
+                    <td className="text-center font-bold">100.00%</td>
                     <td className="text-right font-bold">${summaryData.reduce((s, d) => s + d.shippingFee, 0).toFixed(2)}</td>
                     <td className="text-right font-bold">${summaryData.reduce((s, d) => s + d.price, 0).toFixed(2)}</td>
+                    <td className="text-center font-bold" style={{ color: 'var(--success-color)' }}>100.00%</td>
                     <td className="text-right font-bold">${summaryData.reduce((s, d) => s + d.importTax, 0).toFixed(2)}</td>
                     <td className="text-right font-bold" style={{ fontWeight: 700, color: 'var(--primary-color)' }}>
                       ${summaryData.reduce((s, d) => s + d.totalCost, 0).toFixed(2)}
