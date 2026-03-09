@@ -83,6 +83,12 @@ function App() {
     setItems(items.map(item => item.buyer === buyerToRemove ? { ...item, buyer: '' } : item));
   };
 
+  const updateItemBuyer = (idx, buyer) => {
+    const updated = [...items];
+    updated[idx].buyer = buyer;
+    setItems(updated);
+  };
+
   const updateItemQuantity = (idx, qtyStr) => {
     const qty = parseInt(qtyStr, 10) || 1;
     const updated = [...items];
