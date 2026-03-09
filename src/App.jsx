@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import './index.css';
 import * as XLSX from 'xlsx';
 
@@ -16,9 +16,21 @@ function App() {
   const [totalShipping, setTotalShipping] = useState(0);
   const [totalImportTax, setTotalImportTax] = useState(0);
 
-  // Taobao Import State (Removed as per request)
-  // const [showImportModal, setShowImportModal] = useState(false);
-  // const [taobaoOrderText, setTaobaoOrderText] = useState('');
+  // 購買人記憶功能
+  useEffect(() => {
+    const savedBuyers = localStorage.getItem('shipping_buyers');
+    if (savedBuyers) {
+      try {
+        setBuyers(JSON.parse(savedBuyers));
+      } catch (e) {
+        console.error('Failed to load buyers', e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('shipping_buyers', JSON.stringify(buyers));
+  }, [buyers]);
 
   const handleParse = () => {
     // Basic Parsing Logic
@@ -43,11 +55,12 @@ function App() {
         deliveryNum: match[2],
         itemName: match[3],
         quantity: quantity,
+        originalQuantity: quantity, // 記錄原始數量
         weight: weight,
         buyer: '',
         price: 0,
         isShared: false,
-        shares: Array.from({ length: quantity }).map(() => ({ buyer: '', price: 0 }))
+        shares: Array.from({ length: quantity }).map(() => ({ buyer: '', price: 0, weight: 1 }))
       });
     }
 
@@ -243,6 +256,7 @@ function App() {
             deliveryNum: delivery,
             itemName: shareMatch ? shareMatch[1] : name.replace(/"/g, ''), // Remove quotes from item name
             quantity: shareMatch ? parseInt(shareMatch[3], 10) : qty,
+            originalQuantity: shareMatch ? parseInt(shareMatch[3], 10) : qty, // 恢復時以當下數量作為基準
             weight: 0, // Will sum up from shares
             price: 0, // Will sum up from shares or be set directly
             isShared: !!shareMatch,
@@ -639,9 +653,9 @@ function App() {
                                   width: '60px',
                                   textAlign: 'center',
                                   marginBottom: '4px',
-                                  color: item.quantity > 1 ? '#00008b !important' : 'inherit',
-                                  fontWeight: item.quantity > 1 ? '700 !important' : 'normal',
-                                  border: item.quantity > 1 ? '2px solid #00008b !important' : '1px solid var(--border-color)'
+                                  color: (item.originalQuantity > 1) ? '#00008b !important' : '#000 !important',
+                                  fontWeight: (item.originalQuantity > 1) ? '700 !important' : 'normal',
+                                  border: (item.originalQuantity > 1) ? '2px solid #00008b !important' : '1px solid var(--border-color)'
                                 }}
                               />
                               <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -728,9 +742,9 @@ function App() {
                               width: '60px',
                               textAlign: 'center',
                               marginBottom: '4px',
-                              color: item.quantity > 1 ? '#00008b !important' : 'inherit',
-                              fontWeight: item.quantity > 1 ? '700 !important' : 'normal',
-                              border: item.quantity > 1 ? '2px solid #00008b !important' : '1px solid var(--border-color)'
+                              color: (item.originalQuantity > 1) ? '#00008b !important' : '#000 !important',
+                              fontWeight: (item.originalQuantity > 1) ? '700 !important' : 'normal',
+                              border: (item.originalQuantity > 1) ? '2px solid #00008b !important' : '1px solid var(--border-color)'
                             }}
                           />
                           <div style={{ display: 'flex', justifyContent: 'center' }}>
