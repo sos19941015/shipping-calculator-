@@ -12,16 +12,9 @@ function App() {
   const [buyers, setBuyers] = useState([]);
   const [newBuyerName, setNewBuyerName] = useState('');
 
-  // Currency State
-  const [exchangeRate, setExchangeRate] = useState(4.5);
-
-  // Fees
-  const [totalShipping, setTotalShipping] = useState(0);
-  const [totalImportTax, setTotalImportTax] = useState(0);
-
-  // Taobao Import State
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [taobaoOrderText, setTaobaoOrderText] = useState('');
+  // Taobao Import State (Removed as per request)
+  // const [showImportModal, setShowImportModal] = useState(false);
+  // const [taobaoOrderText, setTaobaoOrderText] = useState('');
 
   const handleParse = () => {
     // Basic Parsing Logic
@@ -175,199 +168,108 @@ function App() {
     setItems(updated);
   };
 
-  const handleSmartImport = () => {
-    if (!taobaoOrderText.trim()) return;
-
-    // 1. 解析淘寶文字資料 (常見格式：品名 ... 金額 ... 或是 CSV 列)
-    // 預期抓取像 "商品名稱... 123.45" 這種模式
-    // 常見淘寶複製格式中，金額前方常有 ￥ 或 "實付" 等關鍵字
-    const lines = taobaoOrderText.split('\n');
-    const tbItems = [];
-
-    // 這裡使用較寬鬆的正則抓取可能包含金額的行
-    lines.forEach(line => {
-      // 匹配金額 (可能有 ￥ 符號，或者是純數字)
-      const priceMatch = line.match(/(?:￥|實付|元|[:：])\s*(\d+(\.\d{1,2})?)/) || line.match(/(\d+(\.\d{1,2})?)$/);
-      if (priceMatch) {
-        const price = parseFloat(priceMatch[1]);
-        // 嘗試抓取該行前面的文字作為品名 (去除金額部分)
-        const name = line.replace(priceMatch[0], '').trim().substring(0, 50);
-        if (name && price > 0) {
-          tbItems.push({ name, price });
-        }
-      }
-    });
-
-    if (tbItems.length === 0) {
-      alert('無法從貼上的文字中識別出商品名稱與金額，請確認格式。');
-      return;
-    }
-
-    // 2. 與現有 items 進行模糊比對
-    const updatedItems = [...items];
-    let matchCount = 0;
-
-    updatedItems.forEach(item => {
-      // 如果已經有金額了（不論是主項還是分帳項加總），就不自動覆蓋
-      const currentPrice = item.isShared ? item.shares.reduce((s, sh) => s + sh.price, 0) : item.price;
-      if (currentPrice > 0) return;
-
-      // 找出最匹配的淘寶品名
-      let bestMatch = null;
-      let maxScore = 0;
-
-      tbItems.forEach(tb => {
-        let score = 0;
-        const itemName = item.itemName.toLowerCase();
-        const tbName = tb.name.toLowerCase();
-
-        if (tbName.includes(itemName) || itemName.includes(tbName)) {
-          score = Math.min(itemName.length, tbName.length);
-        }
-
-        if (score > maxScore) {
-          maxScore = score;
-          bestMatch = tb;
-        }
-      });
-
-      if (bestMatch && maxScore > 1) { // 至少對上兩個字以上才算
-        const finalPrice = parseFloat((bestMatch.price * exchangeRate).toFixed(2));
-        item.price = finalPrice;
-
-        // 如果這個項目是分帳狀態，則同步更新分帳子項！
-        if (item.isShared) {
-          recalculateShares(item);
-        }
-
-        matchCount++;
-      }
-    });
-
-    setItems(updatedItems);
-    setShowImportModal(false);
-    setTaobaoOrderText('');
-    alert(`對比完成！成功自動填入 ${matchCount} 項商品的金額。`);
-  };
-
-  const handleExcelImport = (e) => {
+  const handleTxtImport = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const bstr = evt.target.result;
-      const wb = XLSX.read(bstr, { type: 'binary' });
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
-      const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
-
-      // 從 Excel 數據中查找品名、金額與日期
-      // 根據截圖：B欄(1)是訂單時間, E欄(4)是品名, J欄(9)是金額
-      const tbItems = [];
-      let latestOrderDateStr = null;
-
-      data.forEach((row, rowIndex) => {
-        if (rowIndex === 0) return; // 跳過標題列
-        const submitTime = row[1]; // Column B
-        const name = row[4]; // Column E
-        let priceStr = row[9]; // Column J
-
-        // 嘗試提取第一個有效的日期 (格式: YYYY-MM-DD)
-        if (submitTime && !latestOrderDateStr) {
-          if (typeof submitTime === 'string') {
-            const match = submitTime.match(/^(\d{4}-\d{2}-\d{2})/);
-            if (match) latestOrderDateStr = match[1];
-          } else if (typeof submitTime === 'number') {
-            // 將 Excel 序列日期轉為 JS 日期
-            const date = new Date((submitTime - (25567 + 1)) * 86400 * 1000);
-            latestOrderDateStr = date.toISOString().split('T')[0];
-          }
-        }
-
-        if (name && priceStr) {
-          // 清理金額字串 (移除 ￥ 等符號)
-          let price = parseFloat(String(priceStr).replace(/[^\d.]/g, ''));
-          if (!isNaN(price)) {
-            tbItems.push({ name: String(name), price });
-          }
-        }
-      });
-
-      if (tbItems.length === 0) {
-        alert('無法從 Excel 中提取到有效的品名與金額，請確認格式。');
-        return;
-      }
-
-      // 查詢歷史匯率 API
-      let currentExRate = exchangeRate;
-      let rateFetched = false;
-      if (latestOrderDateStr) {
-        try {
-          // 嘗試拿訂單日期的匯率
-          let res = await fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${latestOrderDateStr}/v1/currencies/cny.json`);
-          if (!res.ok) {
-            // 拿不到 (可能因為是未來/尚未結算)，改拿最新匯率
-            res = await fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/cny.json`);
-          }
-          if (res.ok) {
-            const json = await res.json();
-            if (json?.cny?.twd) {
-              currentExRate = json.cny.twd;
-              setExchangeRate(parseFloat(currentExRate.toFixed(4)));
-              rateFetched = true;
-            }
-          }
-        } catch (err) {
-          console.warn('匯率抓取失敗，使用預設匯率', err);
-        }
-      }
-
-      // 與現成 items 進行比對
-      const updatedItems = [...items];
-      let matchCount = 0;
-      updatedItems.forEach(item => {
-        const currentPrice = item.isShared ? item.shares.reduce((s, sh) => s + sh.price, 0) : item.price;
-        if (currentPrice > 0) return;
-
-        let bestMatch = null;
-        let maxScore = 0;
-
-        tbItems.forEach(tb => {
-          let score = 0;
-          const itemName = item.itemName.toLowerCase();
-          const tbName = tb.name.toLowerCase();
-          if (tbName.includes(itemName) || itemName.includes(tbName)) {
-            score = Math.min(itemName.length, tbName.length);
-          }
-          if (score > maxScore) {
-            maxScore = score;
-            bestMatch = tb;
-          }
-        });
-
-        if (bestMatch && maxScore > 1) {
-          const finalPrice = parseFloat((bestMatch.price * currentExRate).toFixed(2));
-          item.price = finalPrice;
-
-          if (item.isShared) {
-            recalculateShares(item);
-          }
-
-          matchCount++;
-        }
-      });
-
-      setItems(updatedItems);
-      setShowImportModal(false);
-
-      let msg = `Excel 對比完成！成功自動填入 ${matchCount} 項金額。`;
-      if (rateFetched) {
-        msg += `\n\n網頁已自動依照您的訂單日期（${latestOrderDateStr}）載入當日匯率：${currentExRate.toFixed(4)}`;
-      }
-      alert(msg);
+    reader.onload = (evt) => {
+      setRawData(evt.target.result);
     };
-    reader.readAsBinaryString(file);
+    reader.readAsText(file);
+  };
+
+  const handleDetailedCSVImport = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const content = evt.target.result;
+      const lines = content.split('\n').map(l => l.trim()).filter(l => l);
+      if (lines.length < 2) return;
+
+      // 簡易 CSV 解析 (處理引號)
+      const parseCSVLine = (line) => {
+        const result = [];
+        let cur = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"') inQuotes = !inQuotes;
+          else if (char === ',' && !inQuotes) {
+            result.push(cur);
+            cur = '';
+          } else cur += char;
+        }
+        result.push(cur);
+        return result;
+      };
+
+      const rows = lines.slice(1).map(parseCSVLine);
+      const itemsMap = new Map();
+      let importedBuyers = new Set();
+      let importedShipping = 0;
+      let importedTax = 0;
+
+      rows.forEach(row => {
+        if (row[0] === '總計') {
+          importedShipping = parseFloat(row[8]) || 0;
+          importedTax = parseFloat(row[9]) || 0;
+          return;
+        }
+
+        const buyer = row[0] === '未分配' ? '' : row[0];
+        const track = row[1];
+        const delivery = row[2];
+        let name = row[3];
+        const qty = parseInt(row[4], 10) || 1;
+        const weight = parseFloat(row[5]) || 0;
+        const price = parseFloat(row[7]) || 0;
+
+        if (buyer) importedBuyers.add(buyer);
+
+        const key = `${track}-${delivery}`;
+        // 判斷是否為分帳項 (品名結尾有 (x/y))
+        const shareMatch = name.match(/^(.*)\s\((\d+)\/(\d+)\)$/);
+
+        if (!itemsMap.has(key)) {
+          itemsMap.set(key, {
+            id: key + '-' + Math.random().toString(36).substr(2, 5),
+            trackingNum: track,
+            deliveryNum: delivery,
+            itemName: shareMatch ? shareMatch[1] : name.replace(/"/g, ''), // Remove quotes from item name
+            quantity: shareMatch ? parseInt(shareMatch[3], 10) : qty,
+            weight: 0, // Will sum up from shares
+            price: 0, // Will sum up from shares or be set directly
+            isShared: !!shareMatch,
+            shares: [],
+            buyer: shareMatch ? '' : buyer
+          });
+        }
+
+        const item = itemsMap.get(key);
+        item.weight += weight; // Sum up weight for the main item
+        if (shareMatch) {
+          item.shares.push({ buyer, price, weight: 1 }); // Weight is 1 for each share for recalculation
+          item.price += price; // Sum up price for the main item if shared
+        } else {
+          item.price = price; // For non-shared items, price is directly set
+        }
+      });
+
+      const finalItems = Array.from(itemsMap.values());
+      const sumWeight = finalItems.reduce((s, i) => s + i.weight, 0);
+      const itemsWithPerc = finalItems.map(item => ({
+        ...item,
+        weightPercentage: sumWeight > 0 ? (item.weight / sumWeight) : 0
+      }));
+
+      setItems(itemsWithPerc);
+      setBuyers(Array.from(importedBuyers));
+      setTotalShipping(importedShipping);
+      setTotalImportTax(importedTax);
+      setStep(2);
+    };
+    reader.readAsText(file);
   };
 
   const calculateSummary = () => {
@@ -572,11 +474,19 @@ function App() {
       csvContent = headers.join(',') + '\n' + rows.map(e => e.join(',')).join('\n');
     }
 
+    const now = new Date();
+    const timestamp = now.getFullYear() +
+      String(now.getMonth() + 1).padStart(2, '0') +
+      String(now.getDate()).padStart(2, '0') + '_' +
+      String(now.getHours()).padStart(2, '0') +
+      String(now.getMinutes()).padStart(2, '0') +
+      String(now.getSeconds()).padStart(2, '0');
+
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `shipping_${type}_summary.csv`);
+    link.setAttribute("download", `shipping_${type}_${timestamp}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -612,9 +522,21 @@ function App() {
 
       {step === 1 && (
         <div className="card">
-          <h2>步驟一：貼上集運明細</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2>步驟一：載入集運資料</h2>
+            <div className="flex gap-2">
+              <label className="secondary-btn" style={{ cursor: 'pointer', padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.875rem' }}>
+                📁 匯入 TXT
+                <input type="file" accept=".txt" onChange={handleTxtImport} style={{ display: 'none' }} />
+              </label>
+              <label className="secondary-btn" style={{ cursor: 'pointer', padding: '0.5rem 1rem', border: '1px solid var(--primary-color)', color: 'var(--primary-color)', borderRadius: '8px', fontSize: '0.875rem' }}>
+                🔄 恢復詳細報表 (CSV)
+                <input type="file" accept=".csv" onChange={handleDetailedCSVImport} style={{ display: 'none' }} />
+              </label>
+            </div>
+          </div>
           <div className="form-group">
-            <label>請貼上包含「快递单号、发货单号、货物品名、数量、实际重量」的原始文字：</label>
+            <label>請貼上原始文字，或從上方按鈕匯入檔案：</label>
             <textarea
               rows={12}
               value={rawData}
@@ -623,7 +545,7 @@ function App() {
             ></textarea>
           </div>
           <div className="text-right">
-            <button onClick={handleParse}>解析資料 👉</button>
+            <button onClick={handleParse}>解析並開始分配 👉</button>
           </div>
         </div>
       )}
@@ -634,19 +556,14 @@ function App() {
             <div style={{ flex: '1 1 300px' }}>
               <h2 style={{ marginBottom: '1.25rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>總體費用設定</h2>
 
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label>總運費 (請輸入您付款的運費)</label>
-                <input type="number" min="0" value={totalShipping} onChange={e => setTotalShipping(parseFloat(e.target.value) || 0)} style={{ width: '100%' }} />
-              </div>
-
               <div className="flex" style={{ gap: '1rem' }}>
-                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                <div className="form-group" style={{ flex: 1, marginBottom: '1rem' }}>
+                  <label>總運費 (TWD)</label>
+                  <input type="number" min="0" value={totalShipping} onChange={e => setTotalShipping(parseFloat(e.target.value) || 0)} style={{ width: '100%' }} />
+                </div>
+                <div className="form-group" style={{ flex: 1, marginBottom: '1rem' }}>
                   <label>總進口稅 (TWD)</label>
                   <input type="number" min="0" value={totalImportTax} onChange={e => setTotalImportTax(parseFloat(e.target.value) || 0)} style={{ width: '100%' }} />
-                </div>
-                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                  <label style={{ color: 'var(--primary-color)' }}>匯率 (RMB ➜ TWD)</label>
-                  <input type="number" step="0.01" min="0" value={exchangeRate} onChange={e => setExchangeRate(parseFloat(e.target.value) || 0)} style={{ width: '100%' }} />
                 </div>
               </div>
             </div>
@@ -676,48 +593,11 @@ function App() {
             <div className="flex justify-between items-center mb-4">
               <h2>步驟二：分配商品與輸入金額</h2>
               <div className="flex gap-2">
-                <button
-                  className="secondary"
-                  onClick={() => setShowImportModal(!showImportModal)}
-                  style={{ padding: '0.4rem 0.8rem', fontSize: '0.875rem', borderColor: 'var(--primary-color)', color: 'var(--primary-color)' }}
-                >
-                  ✨ 智能匯入淘寶金額
-                </button>
                 <span className="badge" style={{ backgroundColor: 'var(--primary-color)', color: 'white', padding: '0.5rem 1rem' }}>
                   共 {items.length} 筆項目 / 總重 {items.reduce((sum, i) => sum + i.weight, 0).toFixed(2)} kg
                 </span>
               </div>
             </div>
-
-            {showImportModal && (
-              <div className="card" style={{ backgroundColor: '#f8f9ff', border: '2px dashed var(--primary-color)', marginBottom: '1.5rem', padding: '1.5rem' }}>
-                <h3 style={{ marginBottom: '0.5rem', fontSize: '1rem', color: 'var(--primary-color)' }}>智能自動填表</h3>
-                <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                  請從淘寶「已買到的寶貝」全選複製列表文字貼在下方，<b>或者直接選取導出的 Excel (.xlsx) 檔案。</b>
-                </p>
-
-                <div style={{ padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '1.5rem', background: 'white' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.875rem' }}>方式 A：上傳 Excel 檔案 (推薦)</label>
-                  <input type="file" accept=".xlsx, .xls" onChange={handleExcelImport} style={{ fontSize: '0.875rem' }} />
-                </div>
-
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.875rem' }}>方式 B：貼上訂單文字</label>
-                  <textarea
-                    rows={4}
-                    placeholder="在此貼上複製的訂單文字..."
-                    value={taobaoOrderText}
-                    onChange={(e) => setTaobaoOrderText(e.target.value)}
-                    style={{ fontSize: '0.875rem' }}
-                  ></textarea>
-                </div>
-
-                <div className="flex justify-between">
-                  <button className="secondary" onClick={() => setShowImportModal(false)}>取消</button>
-                  <button onClick={handleSmartImport} disabled={!taobaoOrderText.trim()}>立刻對比訂單文字 👉</button>
-                </div>
-              </div>
-            )}
 
             <div className="table-container">
               <table>
