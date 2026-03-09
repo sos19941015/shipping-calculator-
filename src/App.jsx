@@ -83,16 +83,37 @@ function App() {
     setItems(items.map(item => item.buyer === buyerToRemove ? { ...item, buyer: '' } : item));
   };
 
-  const updateItemBuyer = (idx, buyer) => {
+  const updateItemQuantity = (idx, qtyStr) => {
+    const qty = parseInt(qtyStr, 10) || 1;
     const updated = [...items];
-    updated[idx].buyer = buyer;
+    const item = updated[idx];
+    item.quantity = qty;
+
+    // 調整 shares 陣列大小，保留舊有資料
+    const currentShares = item.shares || [];
+    if (currentShares.length < qty) {
+      const newShares = Array.from({ length: qty - currentShares.length }).map(() => ({ buyer: '', price: 0, weight: 1 }));
+      item.shares = [...currentShares, ...newShares];
+    } else if (currentShares.length > qty) {
+      item.shares = currentShares.slice(0, qty);
+    }
+
+    // 如果正在分帳，重新計算分配
+    if (item.isShared) {
+      recalculateShares(item);
+    }
+
     setItems(updated);
   };
 
-  const updateItemPrice = (idx, priceStr) => {
-    const updated = [...items];
-    updated[idx].price = parseFloat(priceStr) || 0;
-    setItems(updated);
+  const recalculateShares = (item) => {
+    const totalWeight = item.shares.reduce((sum, s) => sum + (parseFloat(s.weight) || 0), 0);
+    if (totalWeight > 0) {
+      item.shares.forEach(s => {
+        const weight = parseFloat(s.weight) || 0;
+        s.price = parseFloat(((weight / totalWeight) * item.price).toFixed(2));
+      });
+    }
   };
 
   const toggleItemShare = (idx) => {
@@ -102,17 +123,36 @@ function App() {
     item.isShared = !wasShared;
 
     if (item.isShared) {
-      // 開啟分帳：將原本的金額平均分配給每一份，並同步購買人
-      const avgPrice = item.price > 0 ? parseFloat((item.price / item.quantity).toFixed(2)) : 0;
+      // 開啟分帳：設權重為 1，並按權重均分
       item.shares = item.shares.map(s => ({
         buyer: s.buyer || item.buyer,
-        price: s.price > 0 ? s.price : avgPrice
+        price: s.price > 0 ? s.price : (item.price / item.quantity),
+        weight: s.weight || 1
       }));
+      recalculateShares(item);
     } else {
-      // 關閉分帳：將子項目的總額收回到主項目金額中，取第一個有效的購買人
+      // 關閉分帳：加總金額
       item.price = item.shares.reduce((sum, s) => sum + s.price, 0);
       const firstBuyer = item.shares.find(s => s.buyer)?.buyer;
       if (firstBuyer) item.buyer = firstBuyer;
+    }
+    setItems(updated);
+  };
+
+  const updateShareWeight = (idx, sIdx, weightStr) => {
+    const updated = [...items];
+    const item = updated[idx];
+    item.shares[sIdx].weight = parseFloat(weightStr) || 0;
+    recalculateShares(item);
+    setItems(updated);
+  };
+
+  const updateItemPriceAdjusted = (idx, priceStr) => {
+    const updated = [...items];
+    const item = updated[idx];
+    item.price = parseFloat(priceStr) || 0;
+    if (item.isShared) {
+      recalculateShares(item);
     }
     setItems(updated);
   };
@@ -191,8 +231,7 @@ function App() {
 
         // 如果這個項目是分帳狀態，則同步更新分帳子項！
         if (item.isShared) {
-          const avgPrice = parseFloat((finalPrice / item.quantity).toFixed(2));
-          item.shares = item.shares.map(s => ({ ...s, price: avgPrice }));
+          recalculateShares(item);
         }
 
         matchCount++;
@@ -306,8 +345,7 @@ function App() {
           item.price = finalPrice;
 
           if (item.isShared) {
-            const avgPrice = parseFloat((finalPrice / item.quantity).toFixed(2));
-            item.shares = item.shares.map(s => ({ ...s, price: avgPrice }));
+            recalculateShares(item);
           }
 
           matchCount++;
@@ -700,11 +738,17 @@ function App() {
                               <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>發: {item.deliveryNum}</div>
                             </td>
                             <td className="text-center" style={{ minWidth: '100px', verticalAlign: 'middle' }}>
-                              {item.quantity}
+                              <input
+                                type="number"
+                                min="1"
+                                value={item.quantity}
+                                onChange={e => updateItemQuantity(idx, e.target.value)}
+                                style={{ width: '60px', textAlign: 'center', marginBottom: '4px' }}
+                              />
                               <div style={{ display: 'flex', justifyContent: 'center' }}>
                                 <label className="share-label">
                                   <input type="checkbox" checked={item.isShared} onChange={() => toggleItemShare(idx)} />
-                                  多人分帳
+                                  分帳
                                 </label>
                               </div>
                             </td>
@@ -720,7 +764,7 @@ function App() {
                                   if (i.isShared) return sum + i.shares.reduce((s, share) => s + share.price, 0);
                                   return sum + i.price;
                                 }, 0);
-                                const itemPrice = item.shares.reduce((s, sh) => s + sh.price, 0);
+                                const itemPrice = item.isShared ? item.shares.reduce((s, sh) => s + sh.price, 0) : item.price;
                                 return totalPrice > 0 ? ((itemPrice / totalPrice) * 100).toFixed(1) + '%' : '0.0%';
                               })()}
                             </td>
@@ -739,8 +783,16 @@ function App() {
                                   {buyers.map(b => <option key={b} value={b}>{b}</option>)}
                                 </select>
                               </td>
-                              <td>
-                                <input type="number" min="0" placeholder="金額" value={share.price || ''} onChange={e => updateSharePrice(idx, sIdx, e.target.value)} />
+                              <td style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  placeholder="比例/權重"
+                                  value={share.weight || ''}
+                                  onChange={e => updateShareWeight(idx, sIdx, e.target.value)}
+                                  style={{ width: '70px' }}
+                                />
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>➔ ${share.price.toFixed(1)}</span>
                               </td>
                             </tr>
                           ))}
@@ -756,15 +808,19 @@ function App() {
                           <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>發: {item.deliveryNum}</div>
                         </td>
                         <td className="text-center" style={{ minWidth: '120px', verticalAlign: 'middle' }}>
-                          {item.quantity}
-                          {item.quantity > 1 && (
-                            <div style={{ display: 'flex', justifyContent: 'center' }}>
-                              <label className="share-label">
-                                <input type="checkbox" checked={item.isShared || false} onChange={() => toggleItemShare(idx)} />
-                                多人分帳
-                              </label>
-                            </div>
-                          )}
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={e => updateItemQuantity(idx, e.target.value)}
+                            style={{ width: '60px', textAlign: 'center', marginBottom: '4px' }}
+                          />
+                          <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            <label className="share-label">
+                              <input type="checkbox" checked={item.isShared || false} onChange={() => toggleItemShare(idx)} />
+                              分帳
+                            </label>
+                          </div>
                         </td>
                         <td className="text-center">
                           {item.weight}
@@ -794,9 +850,9 @@ function App() {
                           <input
                             type="number"
                             min="0"
-                            placeholder="金額"
+                            placeholder="總金額"
                             value={item.price || ''}
-                            onChange={e => updateItemPrice(idx, e.target.value)}
+                            onChange={e => updateItemPriceAdjusted(idx, e.target.value)}
                           />
                         </td>
                       </tr>
