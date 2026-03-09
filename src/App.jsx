@@ -12,6 +12,10 @@ function App() {
   const [buyers, setBuyers] = useState([]);
   const [newBuyerName, setNewBuyerName] = useState('');
 
+  // Fees
+  const [totalShipping, setTotalShipping] = useState(0);
+  const [totalImportTax, setTotalImportTax] = useState(0);
+
   // Taobao Import State (Removed as per request)
   // const [showImportModal, setShowImportModal] = useState(false);
   // const [taobaoOrderText, setTaobaoOrderText] = useState('');
