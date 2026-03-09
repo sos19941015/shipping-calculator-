@@ -768,6 +768,18 @@ function App() {
                                 return totalPrice > 0 ? ((itemPrice / totalPrice) * 100).toFixed(1) + '%' : '0.0%';
                               })()}
                             </td>
+                            {/* 分帳模式下，主列保留購買人(隱藏/禁用)與總金額輸入框 */}
+                            <td className="text-muted text-center" style={{ fontSize: '0.8rem' }}> (多人分帳) </td>
+                            <td>
+                              <input
+                                type="number"
+                                min="0"
+                                placeholder="填入總金額"
+                                value={item.price || ''}
+                                onChange={e => updateItemPriceAdjusted(idx, e.target.value)}
+                                style={{ border: '2px solid var(--primary-color)', backgroundColor: '#fff' }}
+                              />
+                            </td>
                           </tr>
                           {item.shares.map((share, sIdx) => (
                             <tr key={`${item.id}-share-${sIdx}`} style={{ backgroundColor: '#fdfdfd' }}>
