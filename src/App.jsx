@@ -110,11 +110,12 @@ function App() {
   };
 
   const recalculateShares = (item) => {
+    if (!item?.shares) return;
     const totalWeight = item.shares.reduce((sum, s) => sum + (parseFloat(s.weight) || 0), 0);
     if (totalWeight > 0) {
       item.shares.forEach(s => {
         const weight = parseFloat(s.weight) || 0;
-        s.price = parseFloat(((weight / totalWeight) * item.price).toFixed(2));
+        s.price = parseFloat(((weight / totalWeight) * (item.price || 0)).toFixed(2));
       });
     }
   };
@@ -311,18 +312,19 @@ function App() {
 
       items.forEach(i => {
         if (i.isShared) {
-          i.shares.forEach(share => {
+          (i.shares || []).forEach(share => {
             if ((share.buyer || '') === buyer) {
-              buyerWeight += (i.weight / i.quantity);
-              buyerPrice += share.price;
+              const qty = Math.max(1, i.quantity || 1);
+              buyerWeight += (i.weight / qty);
+              buyerPrice += (share.price || 0);
               itemCount += 1;
             }
           });
         } else {
           if ((i.buyer || '') === buyer) {
-            buyerWeight += i.weight;
-            buyerPrice += i.price;
-            itemCount += i.quantity;
+            buyerWeight += (i.weight || 0);
+            buyerPrice += (i.price || 0);
+            itemCount += (i.quantity || 0);
           }
         }
       });
@@ -633,7 +635,14 @@ function App() {
                                 min="1"
                                 value={item.quantity}
                                 onChange={e => updateItemQuantity(idx, e.target.value)}
-                                style={{ width: '60px', textAlign: 'center', marginBottom: '4px' }}
+                                style={{
+                                  width: '60px',
+                                  textAlign: 'center',
+                                  marginBottom: '4px',
+                                  color: item.quantity > 1 ? '#1e3a8a' : 'inherit',
+                                  fontWeight: item.quantity > 1 ? '700' : 'normal',
+                                  border: item.quantity > 1 ? '1px solid #1e3a8a' : '1px solid var(--border-color)'
+                                }}
                               />
                               <div style={{ display: 'flex', justifyContent: 'center' }}>
                                 <label className="share-label">
@@ -715,7 +724,14 @@ function App() {
                             min="1"
                             value={item.quantity}
                             onChange={e => updateItemQuantity(idx, e.target.value)}
-                            style={{ width: '60px', textAlign: 'center', marginBottom: '4px' }}
+                            style={{
+                              width: '60px',
+                              textAlign: 'center',
+                              marginBottom: '4px',
+                              color: item.quantity > 1 ? '#1e3a8a' : 'inherit',
+                              fontWeight: item.quantity > 1 ? '700' : 'normal',
+                              border: item.quantity > 1 ? '1px solid #1e3a8a' : '1px solid var(--border-color)'
+                            }}
                           />
                           <div style={{ display: 'flex', justifyContent: 'center' }}>
                             <label className="share-label">
