@@ -97,7 +97,23 @@ function App() {
 
   const toggleItemShare = (idx) => {
     const updated = [...items];
-    updated[idx].isShared = !updated[idx].isShared;
+    const item = updated[idx];
+    const wasShared = item.isShared;
+    item.isShared = !wasShared;
+
+    if (item.isShared) {
+      // 開啟分帳：將原本的金額平均分配給每一份，並同步購買人
+      const avgPrice = item.price > 0 ? parseFloat((item.price / item.quantity).toFixed(2)) : 0;
+      item.shares = item.shares.map(s => ({
+        buyer: s.buyer || item.buyer,
+        price: s.price > 0 ? s.price : avgPrice
+      }));
+    } else {
+      // 關閉分帳：將子項目的總額收回到主項目金額中，取第一個有效的購買人
+      item.price = item.shares.reduce((sum, s) => sum + s.price, 0);
+      const firstBuyer = item.shares.find(s => s.buyer)?.buyer;
+      if (firstBuyer) item.buyer = firstBuyer;
+    }
     setItems(updated);
   };
 
@@ -146,15 +162,15 @@ function App() {
     let matchCount = 0;
 
     updatedItems.forEach(item => {
-      if (item.price > 0) return; // 已有金額的不自動覆蓋
+      // 如果已經有金額了（不論是主項還是分帳項加總），就不自動覆蓋
+      const currentPrice = item.isShared ? item.shares.reduce((s, sh) => s + sh.price, 0) : item.price;
+      if (currentPrice > 0) return;
 
       // 找出最匹配的淘寶品名
       let bestMatch = null;
       let maxScore = 0;
 
       tbItems.forEach(tb => {
-        // 簡單的比對邏輯：集運品名是否有包含在淘寶品名中，反之亦然
-        // 或是重疊的字數越多分數越高
         let score = 0;
         const itemName = item.itemName.toLowerCase();
         const tbName = tb.name.toLowerCase();
@@ -170,7 +186,15 @@ function App() {
       });
 
       if (bestMatch && maxScore > 1) { // 至少對上兩個字以上才算
-        item.price = parseFloat((bestMatch.price * exchangeRate).toFixed(2));
+        const finalPrice = parseFloat((bestMatch.price * exchangeRate).toFixed(2));
+        item.price = finalPrice;
+
+        // 如果這個項目是分帳狀態，則同步更新分帳子項！
+        if (item.isShared) {
+          const avgPrice = parseFloat((finalPrice / item.quantity).toFixed(2));
+          item.shares = item.shares.map(s => ({ ...s, price: avgPrice }));
+        }
+
         matchCount++;
       }
     });
@@ -258,7 +282,9 @@ function App() {
       const updatedItems = [...items];
       let matchCount = 0;
       updatedItems.forEach(item => {
-        if (item.price > 0) return;
+        const currentPrice = item.isShared ? item.shares.reduce((s, sh) => s + sh.price, 0) : item.price;
+        if (currentPrice > 0) return;
+
         let bestMatch = null;
         let maxScore = 0;
 
@@ -276,7 +302,14 @@ function App() {
         });
 
         if (bestMatch && maxScore > 1) {
-          item.price = parseFloat((bestMatch.price * currentExRate).toFixed(2));
+          const finalPrice = parseFloat((bestMatch.price * currentExRate).toFixed(2));
+          item.price = finalPrice;
+
+          if (item.isShared) {
+            const avgPrice = parseFloat((finalPrice / item.quantity).toFixed(2));
+            item.shares = item.shares.map(s => ({ ...s, price: avgPrice }));
+          }
+
           matchCount++;
         }
       });
