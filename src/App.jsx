@@ -639,9 +639,9 @@ function App() {
                                   width: '60px',
                                   textAlign: 'center',
                                   marginBottom: '4px',
-                                  color: item.quantity > 1 ? '#1e3a8a' : 'inherit',
-                                  fontWeight: item.quantity > 1 ? '700' : 'normal',
-                                  border: item.quantity > 1 ? '1px solid #1e3a8a' : '1px solid var(--border-color)'
+                                  color: item.quantity > 1 ? '#00008b !important' : 'inherit',
+                                  fontWeight: item.quantity > 1 ? '700 !important' : 'normal',
+                                  border: item.quantity > 1 ? '2px solid #00008b !important' : '1px solid var(--border-color)'
                                 }}
                               />
                               <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -728,9 +728,9 @@ function App() {
                               width: '60px',
                               textAlign: 'center',
                               marginBottom: '4px',
-                              color: item.quantity > 1 ? '#1e3a8a' : 'inherit',
-                              fontWeight: item.quantity > 1 ? '700' : 'normal',
-                              border: item.quantity > 1 ? '1px solid #1e3a8a' : '1px solid var(--border-color)'
+                              color: item.quantity > 1 ? '#00008b !important' : 'inherit',
+                              fontWeight: item.quantity > 1 ? '700 !important' : 'normal',
+                              border: item.quantity > 1 ? '2px solid #00008b !important' : '1px solid var(--border-color)'
                             }}
                           />
                           <div style={{ display: 'flex', justifyContent: 'center' }}>
