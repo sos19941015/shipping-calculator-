@@ -449,39 +449,66 @@ function App() {
       let sumTotal = 0;
 
       sortedItems.forEach(item => {
-        const itemWeightPerc = totalWeight > 0 ? (item.weight / totalWeight) : 0;
-
-        // 若為多人分帳，個別項目的進口稅分攤比例需分開計算
-        let itemPrice = item.price;
         if (item.isShared) {
-          itemPrice = item.shares.reduce((s, share) => s + share.price, 0);
+          // 多人分帳：每一份(share)都拆成獨立的一列 CSV
+          item.shares.forEach((share, sIdx) => {
+            const shareWeight = item.weight / item.quantity;
+            const weightPerc = totalWeight > 0 ? (shareWeight / totalWeight) : 0;
+            const pricePerc = totalPrice > 0 ? (share.price / totalPrice) : 0;
+            const shippingFee = weightPerc * totalShipping;
+            const importTax = pricePerc * totalImportTax;
+            const total = share.price + shippingFee + importTax;
+
+            sumQty += 1;
+            sumWeight += shareWeight;
+            sumPrice += share.price;
+            sumShipping += shippingFee;
+            sumTax += importTax;
+            sumTotal += total;
+
+            rows.push([
+              share.buyer || '未分配',
+              item.trackingNum,
+              item.deliveryNum,
+              `"${item.itemName} (${sIdx + 1}/${item.quantity})"`,
+              1,
+              shareWeight.toFixed(2),
+              (weightPerc * 100).toFixed(2) + '%',
+              share.price.toFixed(2),
+              shippingFee.toFixed(2),
+              importTax.toFixed(2),
+              total.toFixed(2)
+            ]);
+          });
+        } else {
+          // 一般單人項目
+          const weightPerc = totalWeight > 0 ? (item.weight / totalWeight) : 0;
+          const pricePerc = totalPrice > 0 ? (item.price / totalPrice) : 0;
+          const shippingFee = weightPerc * totalShipping;
+          const importTax = pricePerc * totalImportTax;
+          const total = item.price + shippingFee + importTax;
+
+          sumQty += item.quantity;
+          sumWeight += item.weight;
+          sumPrice += item.price;
+          sumShipping += shippingFee;
+          sumTax += importTax;
+          sumTotal += total;
+
+          rows.push([
+            item.buyer || '未分配',
+            item.trackingNum,
+            item.deliveryNum,
+            `"${item.itemName}"`,
+            item.quantity,
+            item.weight.toFixed(2),
+            (weightPerc * 100).toFixed(2) + '%',
+            item.price.toFixed(2),
+            shippingFee.toFixed(2),
+            importTax.toFixed(2),
+            total.toFixed(2)
+          ]);
         }
-
-        const itemPricePerc = totalPrice > 0 ? (itemPrice / totalPrice) : 0;
-        const itemShipping = itemWeightPerc * totalShipping;
-        const itemTax = itemPricePerc * totalImportTax;
-        const itemTotal = itemPrice + itemShipping + itemTax;
-
-        sumQty += item.quantity;
-        sumWeight += item.weight;
-        sumPrice += item.price;
-        sumShipping += itemShipping;
-        sumTax += itemTax;
-        sumTotal += itemTotal;
-
-        rows.push([
-          item.buyer || '未分配',
-          item.trackingNum,
-          item.deliveryNum,
-          `"${item.itemName}"`, // wrap in quotes to escape commas in name
-          item.quantity,
-          item.weight.toFixed(2),
-          (itemWeightPerc * 100).toFixed(2) + '%',
-          item.price.toFixed(2),
-          itemShipping.toFixed(2),
-          itemTax.toFixed(2),
-          itemTotal.toFixed(2)
-        ]);
       });
 
       rows.push([
